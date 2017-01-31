@@ -85,6 +85,8 @@ class RestClient(object):
         r = requests.head(url, **self.args)
         return r
 
+#bhg38 changed the function to be able to handle answers without keyword (sic) like get/netdevices
+
     def get(self, url, is_file=False):
         result = []
         if is_file:
@@ -107,7 +109,8 @@ class RestClient(object):
                 try:
                     datatype = JSON_MAP[key]
                 except KeyError:
-                    raise NotFound(key)
+                   #raise NotFound(key)
+                    datatype = None
                 if datatype is None:
                     result = data[key]
                 else:

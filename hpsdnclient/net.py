@@ -13,6 +13,10 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+#
+#   created by Dave Tucker - 2014 with version 2.1 of the HP SDN controller
+#   modified by Bruno Hareng -2016 with version 2.7 of the HP SDN controller
+#   did not implemented the keys APIs
 
 import json
 import urllib
@@ -91,105 +95,35 @@ class NetMixin(ApiBase):
                                                    urllib.quote(dst_dpid)))
         return self.restclient.get(url)
 
-    def get_arps(self, vid=None, ip=None):
-        """ Provides ARP details for the given IP address and VLAN ID
-
-        :param str vid: Return ARPs in the provided VLAN ID
-        :param str ip: Return only the ARP for the specified IP Address
-        :return: List of ARPs
-        :rtype: list
-
-        """
-        url = self._net_base_url + 'arps'
-
-        if vid and not ip:
-            url = url + "?vid={0}".format(vid, ip)
-        elif vid and ip:
-            url = url + "?vid={0}&ip={1}".format(vid, ip)
-
-        return self.restclient.get(url)
-
-    def get_nodes(self, ip=None, vid=None, dpid=None, port=None):
+    #Updated according to the 2.7 controller spec - add mac
+    def get_nodes(self, ip=None, vid=None, dpid=None, port=None, mac=None):
         """ Get all Nodes discovered by the controller
 
-        - With `ip`` and ``vid`` returns node details
-        - With ``vid`` returns Nodes in the specified VLAN
-        - With ``dpid`` returns Nodes attached to the specified DPID
-        - With ``dpid`` and ``port`` returns Nodes for given port/DPID
+        input parameters are (vid) OR (vid and ip) OR (vid and mac) OR (dpid) OR (dpid and port) OR (ip)
 
         :param str ip: IP address
         :param str vid: VLAN ID
         :param str dpid: Datapath ID
         :param str port: Port
+        :param str mac: Mac address
 
         """
         url = self._net_base_url + 'nodes'
 
-        if vid and not ip:
+        if vid and not ip and not mac:
             url += "?vid={0}".format(vid, ip)
         elif vid and ip:
             url += "?vid={0}&ip={1}".format(vid, ip)
+        elif vid and mac:
+            url += "?vid={0}&mac={1}".format(vid, urllib.quote(mac))
+        elif ip:
+            url += "?ip={0}".format(ip)
         elif dpid and not port:
             url += "?dpid={0}".format(urllib.quote(dpid))
         elif dpid and port:
             url += "?dpid={0}&port={1}".format(urllib.quote(dpid), port)
 
         return self.restclient.get(url)
-
-    def get_lldp_suppressed_ports(self):
-        """ Gets a list of LLDP suppressed ports from the controller
-
-        :return: A list of ports in the LLDP suppressed state
-        :rtype: list
-
-        """
-        url = self._net_base_url + 'lldp'
-        return self.restclient.get(url)
-
-    def set_lldp_suppressed(self, ports):
-        """ Puts the provided ports in to LLDP suppressed state
-
-        :params str ports: The ports to be suppressed
-
-        """
-        if isinstance(ports, list):
-            tmp = []
-            for item in list:
-                if isinstance(item, LldpProperties):
-                    tmp.append(item.to_dict())
-                else:
-                    tmp.append(item)
-            data = {"lldp_suppressed": tmp}
-
-        else:
-            data = {"lldp_suppressed": [ports.to_dict()]}
-
-        url = self._net_base_url + 'lldp'
-        r = self.restclient.post(url, json.dumps(data))
-        raise_errors(r)
-
-    def remove_lldp_suppressed(self, ports):
-        """ Removes ports from LLDP suppressed state
-
-        :params hpsdnclient.datatypes.LldpProperties ports:
-            The ports to be removed from LLDP suppressed state
-
-        """
-
-        if isinstance(ports, list):
-            tmp = []
-            for item in list:
-                if isinstance(item, LldpProperties):
-                    tmp.append(item.to_dict())
-                else:
-                    tmp.append(item)
-            data = {"lldp_suppressed": tmp}
-
-        else:
-            data = {"lldp_suppressed": [ports.to_dict()]}
-        url = self._net_base_url + 'lldp'
-        r = self.restclient.delete(url, json.dumps(data))
-        raise_errors(r)
 
     def get_diag_observation_posts(self, packet_uid=None, packet_type=None):
         """ Gets a list of diagnostic observation posts
@@ -309,4 +243,77 @@ class NetMixin(ApiBase):
         data = {"simulation": action}
         url = self._diag_base_url + 'packets/{}/action'.format(packet_uid)
         r = self.restclient.post(url, json.dumps(data))
+        raise_errors(r)
+
+    #bhg38 - added as defined in spec 2.7 of the controller
+    def get_devices(self):
+        """ Gets a list of all devices
+
+        :return: A list of devices
+        :rtype: hpsdnclient.datatypes.Devices
+
+        """
+        url = self._net_base_url + 'devices'
+        return self.restclient.get(url)
+
+
+    #bhg38 - added as defined in spec 2.7 of the controller
+    def get_device_details(self, device_id):
+        """ Lists details about a specific device
+
+        :return: a device details
+        :rtype: hpsdnclient.datatypes.Devicedetails
+
+        """
+        url = self._net_base_url + 'devices/{0}'.format(urllib.quote(device_id))
+        return self.restclient.get(url)
+
+
+    #bhg38 - added as defined in spec 2.7 of the controller
+    def delete_device(self, device_id):
+        """ Deletes the specified device
+
+         """
+        url = self._net_base_url + 'devices/{0}'.format(urllib.quote(device_id))
+        r = self.restclient.delete(url)
+        raise_errors(r)
+
+    #bhg38 - DONT USE - BUG in the rest answer in 2.7 -
+    #added as defined in spec 2.7 of the controller
+
+    def get_device_interfaces(self, device_id):
+        """ Lists all interfaces associated with a device
+
+        :return: a device interfaces
+        :rtype: hpsdnclient.datatypes.Interfaces
+
+	works only if the device is Online. needed to be checked before calling
+
+
+        """
+        
+        url = self._net_base_url + 'devices/{0}/interfaces'.format(urllib.quote(device_id))
+        return self.restclient.get(url)
+
+    #bhg38 - DONT USE - BUG in the rest answer in 2.7 -
+    #added as defined in spec 2.7 of the controller
+    def get_link_discovery_vlan(self, device_id):
+        """ Lists the link discovery VLAN ID of a specific device.
+
+        :return: a vlan
+        :rtype: str 
+
+        """
+        url = self._net_base_url + 'devices/{0}/linkDiscoveryVlan'.format(urllib.quote(device_id))
+        return self.restclient.get(url)
+
+    #bhg38 - DONT USE - BUG in the rest answer in 2.7 -
+    #added as defined in spec 2.7 of the controller
+    def addlink_discovery_vlan(self, device_id, vlan_id):
+        """ Configures a link discovery VLAN ID for the specified device
+
+        :rtype: str 
+        """
+        url = self._net_base_url + 'devices/{0}/linkDiscoveryVlan/{1}'.format(urllib.quote(device_id),vlan_id)
+        r = self.restclient.post(url)
         raise_errors(r)

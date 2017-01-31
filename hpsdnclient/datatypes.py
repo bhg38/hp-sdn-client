@@ -13,6 +13,9 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+#
+#   created by Dave Tucker - 2014 with version 2.1 of the HP SDN controller
+#   modified by Bruno Hareng -2016 with version 2.7 of the HP SDN controller
 
 """ Python Data Types used for the REST objects """
 
@@ -139,7 +142,9 @@ LINK_STATE = ["link_down",
               "stp_block"
               ]
 
+CONTROLLER_ROLE = ["master", "slaves"]
 OPERATION = ["ADD", "CHANGE", "DELETE", "MOVE"]
+
 
 ENUMS = [ETHERNET,
          VERSION,
@@ -167,10 +172,14 @@ ENUMS = [ETHERNET,
 METHODS = ["factory", "to_json_string", "to_dict"]
 KEYWORDS = ["self"]
 
+
+#bhg38 - added macgroups, metrics, devices
+#bhg38 fixed meters issue
 JSON_MAP = {'datapath': 'Datapath',
             'meter_features': 'MeterFeatures',
             'group_features': 'GroupFeatures',
             'port': 'Port',
+            'port_stats': 'PortStats',
             'meter': 'Meter',
             'flow': 'Flow',
             'group': 'Group',
@@ -181,14 +190,16 @@ JSON_MAP = {'datapath': 'Datapath',
             'license': 'License',
             'support_report': None,
             'observation': 'Observation',
-            'nexthop': 'NextHop'
+            'nexthop': 'NextHop',
+            'mac_group': 'MacGroup', 
+            'class': 'SDNClass'
             }
 
 PLURALS = {'datapaths': JSON_MAP['datapath'],
            'controller_stats': 'ControllerStats',
            'stats': 'Stats',
            'ports': JSON_MAP['port'],
-           'meters': JSON_MAP['meter'],
+           'meters': 'Meters',
            'flows': JSON_MAP['flow'],
            'groups': JSON_MAP['group'],
            'clusters': JSON_MAP['cluster'],
@@ -201,13 +212,19 @@ PLURALS = {'datapaths': JSON_MAP['datapath'],
            'apps': JSON_MAP['app'],
            'licenses': JSON_MAP['license'],
            'paths': JSON_MAP['path'],
-           'nexthops': JSON_MAP['nexthop']
+           'nexthops': JSON_MAP['nexthop'],
+           'mac_groups': JSON_MAP['mac_group'],
+           'metrics': 'MetricSeq',
+           'devices': 'Device',
+           'Interfaces': 'Interface',
+           'classes': JSON_MAP['class']
            }
 
 CLASS_MAP = {'ControllerStats': {'lost': 'Counter',
                                  'packet_in': 'Counter',
                                  'packet_out': 'Counter'},
              'Team': {'systems': 'TeamSystem'},
+             'Device_id':{'device_id': 'DeviceId'},
              'Flow': {'match': 'Match',
                       'actions': 'Action',
                       'instructions': 'Instruction'},
@@ -311,6 +328,94 @@ class JsonObject(object):
             return True
 
 # OpenFlow #
+
+
+class SDNClass(JsonObject):
+    """ 
+
+        A python representation of the Class object
+
+    """
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id', None)
+        self.description = kwargs.get('description', None)
+        self.actual_priority = kwargs.get('actual_priority', None)
+        self.base_cookie = kwargs.get('description', None)
+        self.lower_ids = kwargs.get('lower_ids', [])
+        self.match_fields = kwargs.get('match_fields', [])
+        self.actions = kwargs.get('actions', [])
+
+
+class MacGroup(JsonObject):
+    """ 
+
+        A python representation of the MacGroup object
+
+    """
+    def __init__(self, **kwargs):
+        self.group_id = kwargs.get('group_id', None)
+        self.type = kwargs.get('type', None)
+        self.macs = kwargs.get('macs', [])
+
+
+class MetricSeq(JsonObject):
+    """ 
+
+        A python representation of the Metric object as defined in sequencer
+
+    """
+    def __init__(self, **kwargs):
+        self.class_type = kwargs.get('class', None)
+        self.role = kwargs.get('role', None)
+        self.altitude = kwargs.get('altitude', None)
+        self.sample_count = kwargs.get('sample_count', None)
+        self.total_duration = kwargs.get('total_duration', None)
+        self.av_duration_nanos = kwargs.get('av_duration_nanos', None)
+        self.av_duration_ms = kwargs.get('av_duration_ms', None)
+        self.av_ms_string = kwargs.get('av_ms_string', None)
+
+
+class Device(JsonObject):
+    """ 
+        A python representation of the Device object
+
+    """
+    def __init__(self, **kwargs):
+        self.uid = kwargs.get('uid', None)
+        self.device_status = kwargs.get('Device Status', None)
+        self.uris = kwargs.get('uris', [])
+
+
+class DeviceId(JsonObject):
+    """ 
+
+        A python representation of the DeviceId object
+
+    """
+    def __init__(self, **kwargs):
+        self.contact = kwargs.get('contact', None)
+        self.description = kwargs.get('description', None)
+        self.device_type = kwargs.get('device type', None)
+        self.fw = kwargs.get('fw', None)
+        self.ip = kwargs.get('ip', None)
+        self.location = kwargs.get('location', None)
+        self.name = kwargs.get('name', None)
+        self.product = kwargs.get('product', None)
+        self.serial = kwargs.get('serial', None)
+        self.vendor = kwargs.get('vendor', None)
+
+
+class DeviceDetails(JsonObject):
+    """ 
+
+        A python representation of the Device Details Object used in net/devices/uid
+
+    """
+    def __init__(self, **kwargs):
+        self.device_status = kwargs.get('Device Status', None)
+        self.device_id = kwargs.get('device identity', None)
+        self.if_count = kwargs.get('if count', None)
+        self.uid = kwargs.get('uid', None)
 
 
 class Datapath(JsonObject):
@@ -631,7 +736,20 @@ class Meter(JsonObject):
         self.flags = kwargs.get('flags', [])
         self.bands = kwargs.get('bands', [])
 
+#bhg38 added to fix the GET meter bug
+class Meters(JsonObject):
+    """ Meter (JsonObject)
 
+        A python representation of the Meter object
+
+    """
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id', None)
+        self.flags = kwargs.get('flags', [])
+        self.bands = kwargs.get('bands', [])
+
+
+#bhg38 Not used . when entering the Bands, please use a Json format
 class MeterBand(JsonObject):
     """ MeterBand (JsonObject)
 
@@ -662,9 +780,11 @@ class Group(JsonObject):
         self.duration_nsec = kwargs.get('duration_nsec', None)
         self.bucket_stats = kwargs.get('bucket_stats', [])
         self.type = kwargs.get('type', None)
+        self.command =  kwargs.get('type', None)
         self.buckets = kwargs.get('buckets', [])
 
 
+#bhg38 not used. to enter a bucket, please use a Json format
 class Bucket(JsonObject):
     """ Bucket (JsonObject)
 
@@ -699,7 +819,7 @@ class PortStats(JsonObject):
 
     """
     def __init__(self, **kwargs):
-        self.port_id = kwargs.get('id', None)
+        self.port_id = kwargs.get('port_id', None)
         self.rx_packets = kwargs.get('rx_packets', None)
         self.tx_packets = kwargs.get('tx_packets', None)
         self.rx_bytes = kwargs.get('rx_bytes', None)
@@ -771,6 +891,17 @@ class LinkInfo(JsonObject):
         self.src_port_state = kwargs.get('s_pt_state', [])
         self.dst_port_state = kwargs.get('d_pt_state', [])
         self.link_type = kwargs.get('link_type', None)
+
+class Interface(JsonObject):
+    """ Interfcae (JsonObject)
+
+        A python representation of the Interface object
+
+    """
+    def __init__(self, **kwargs):
+        self.Info = kwargs.get('Info', None)
+        self.InterfaceId = kwargs.get('InterfaceId', None)
+
 
 # lldp_suppressed == list of LldpProperties
 
@@ -1364,7 +1495,7 @@ class DataPoint(JsonObject):
     def __init__(self, **kwargs):
         self.count = kwargs.get("count", None)
         self.milliseconds_span = kwargs.get("milliseconds_span", None)
-        self.update_time = kwargs.get("upate_time", None)
+        self.update_time = kwargs.get("update_time", None)
 
 
 class NextHop(JsonObject):
